@@ -1,0 +1,58 @@
+- name: "Premier playbook du dénit"
+  hosts: all
+  become: yes
+  # remote_user: ansible 
+  tasks: 
+    - name: "Installer dépendances Sudo"
+      apt: 
+        name: sudo
+        state: latest
+    - name: "Installer dépendances Python 3.6"
+      apt: 
+        name: python3.6
+        state: latest
+    - name: "Installer dépendances bash"
+      apt: 
+        name: bash
+        state: latest
+    - name: Install python-apt
+      apt: 
+        name: python-apt
+        state: latest
+    
+    - name: "Add the user Alice"
+      ansible.builtin.user:
+        name: Alice
+        group: sudo
+        generate_ssh_key: yes
+        ssh_key_file: .ssh/id_rsa
+        shell: /bin/bash
+
+    - name: "Prend le dossier source sur ma vm ou se situe la clef pri, le copie sur ma machine hôte"
+      ansible.builtin.fetch:
+        src: /home/Alice/.ssh/id_rsa
+        dest: /home/sarah/clefvm/
+        flat: yes
+
+    - name: "Prend le dossier source sur ma vm ou se situe la clef pu, le copie sur ma machine hôte"
+      ansible.builtin.fetch:
+        src: /home/Alice/.ssh/id_rsa.pub
+        dest: /home/sarah/clefvm/
+        flat: yes
+
+    - name: "Prend la clef autorisée dans le fichier"
+      ansible.posix.authorized_key:
+        user: Alice
+        state: present
+        key: "{{ lookup('file', '/home/sarah/clefvm/id_rsa.pub') }}"
+
+    - name: "Copie l'alias"
+      ansible.builtin.copy:
+        src: /home/IaC-ansible-briefs-simplon/configs/bashrc/alias
+        dest: /home/Alice/
+
+    - name : "Alias vers bashrc"
+      ansible.builtin.lineinfile:
+        path: /home/Alice/.bashrc
+        line: source .alias 
+        create: yes

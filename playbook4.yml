@@ -1,0 +1,13 @@
+---
+- name: "LE dernier Playbook de la délivrance"
+  hosts: all
+
+
+- name: Est ce que le premier playbook passe?
+  import_playbook: playbooks.yml
+
+- name: Oui ! le premier passe, et le second ?
+  import_playbook: playbooks2.yml
+
+- name: Oui, le second est passé, si t'es chanceux dans 3 secondes c'est fini !
+  import_playbook: playbooks3.yml

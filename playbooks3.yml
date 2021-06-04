@@ -1,0 +1,52 @@
+- name: "Troisième playbook de l'amour"
+  hosts: webapp
+  become: yes
+   
+  tasks: 
+    - name: "Installer dépendances Python 3.6"
+      apt: 
+        name: python3.6
+        state: latest
+
+    - name: install Pelican
+      apt: 
+        name: pelican
+        state: latest
+
+    - name: Copy edited monBlog
+      copy: 
+        src: /etc/ansible/monBlog
+        dest: /var/www/html
+
+    - name: Copy theme
+      copy: 
+        src: /mnt/c/Users/utilisateur/Desktop/bootstrap
+        dest: /var/www/html/monBlog
+    
+
+
+# Génère le site 
+    - name: Génère le site 
+      command: 'pelican content chdir=/var/www/html/monBlog'
+
+# Install nginix :
+    - name: install nginx
+      apt:
+        name: nginx
+        update_cache: yes
+
+    - name: copy nginx config file
+      copy:
+        src: templates2/nginx2.conf
+        dest: /etc/nginx/sites-available/default
+
+    - name: enable configuration
+      file:
+        dest: /etc/nginx/sites-enabled/default
+        src: /etc/nginx/sites-available/default
+        state: link
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted

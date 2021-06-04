@@ -1,0 +1,6 @@
+[proxy]
+sarahtruffert2.francecentral.cloudapp.azure.com ansible_ssh_private_key_file=/home/sarah/.ssh/ansiblesarah2_key.pem ansible_user=azureuser2 ansible_python_interpreter=/usr/bin/python3
+
+
+[webapp]
+51.103.89.191 ansible_connection=ssh ansible_user=azureuser ansible_ssh_private_key_file=/home/sarah/sarahtruffert_key.pem

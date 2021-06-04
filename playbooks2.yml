@@ -1,0 +1,149 @@
+---
+- name: Configure webserver with nginx
+  hosts: proxy
+  become: True
+  become_method: sudo
+  tasks:
+
+    # - name: install nginx
+    #   apt:
+    #     name: nginx
+    #     update_cache: yes
+
+    - name: install nginx
+      apt:
+        name: nginx
+        update_cache: yes
+
+    - name: copy nginx config file
+      copy:
+        src: templates/nginx.conf
+        dest: /etc/nginx/sites-available/default
+
+    - name: enable configuration
+      file:
+        dest: /etc/nginx/sites-enabled/default
+        src: /etc/nginx/sites-available/default
+        state: link
+
+    - name: copy index.html
+      template:
+        src: templates/index.html.j2
+        dest: /usr/share/nginx/html/index.html
+        mode: 0644
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+
+    - name: "Create .well-known/acme-challenge directory"
+      file:
+        path: /var/www/html/.well-known/acme-challenge
+        state: directory
+        mode: '0775'
+
+    - name: create directory to store certs
+      file:
+        path: home/certs
+        state: directory
+
+    - name: generate account key
+      community.crypto.openssl_privatekey:
+        path: home/certs/account-key.pem
+        size: 4096
+
+    - name: generate signing key
+      community.crypto.openssl_privatekey:
+        path: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.pem
+        size: 4096
+
+    - name: generate csr
+      community.crypto.openssl_csr:
+        path: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.pem.csr
+        privatekey_path: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.pem
+        common_name: sarahtruffert2.francecentral.cloudapp.azure.com
+
+
+    - name: create acme challenge
+      acme_certificate:
+        acme_version: 2
+        terms_agreed: yes
+        account_key_src: home/certs/account-key.pem
+        src: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.pem.csr
+        cert: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.crt
+        challenge: http-01
+        acme_directory: https://acme-staging-v02.api.letsencrypt.org/directory
+        remaining_days: 60
+      register: challenge
+
+
+    - name: Make sure account exists and has given contacts. We agree to TOS.
+      community.crypto.acme_account: 
+        acme_version: 2
+        acme_directory: https://acme-staging-v02.api.letsencrypt.org/directory
+        account_key_src: home/certs/account-key.pem
+        state: present
+        terms_agreed: yes
+        contact:
+        - mailto:sarah.truffertgf2015@gmail.com
+
+    - name: copy challenge
+      copy:
+        dest: /var/www/html/{{ challenge['challenge_data']['sarahtruffert2.francecentral.cloudapp.azure.com']['http-01']['resource'] }}
+        content: "{{ challenge['challenge_data']['sarahtruffert2.francecentral.cloudapp.azure.com']['http-01']['resource_value'] }}"
+      when: challenge is changed and 'sarahtruffert2.francecentral.cloudapp.azure.com' in challenge['challenge_data']
+
+
+    - name: validate acme challenge
+      acme_certificate:
+        acme_version: 2 
+        account_key_src: home/certs/account-key.pem
+        src: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.pem.csr
+        cert: home/certs/sarahtruffert2.francecentral.cloudapp.azure.com.crt
+        challenge: http-01
+        acme_directory: https://acme-staging-v02.api.letsencrypt.org/directory
+        remaining_days: 60
+        data: "{{ challenge }}"
+
+    - name: copy nginx config file
+      copy:
+        src: templates/nginxnew.conf
+        dest: /etc/nginx/sites-available/default
+
+    - name: enable configuration
+      file:
+        dest: /etc/nginx/sites-enabled/default
+        src: /etc/nginx/sites-available/default
+        state: link
+
+    - name: copy index.html
+      template:
+        src: templates/index.html.j2
+        dest: /usr/share/nginx/html/index.html
+        mode: 0644
+  
+    - name: install apt fail2ban packages
+      apt: 
+        name: "{{ item }}"   
+        state: latest
+        update_cache: yes
+        cache_valid_time: 3600
+      with_items:
+        - fail2ban
+
+    - name: copie mes clefs et mes certificats
+      file:
+        src: /home/azureuser2/home/certs/{{ item }}
+        dest: /etc/nginx/{{ item }}
+        state: hard
+      loop:
+        - account-key.pem
+        - sarahtruffert2.francecentral.cloudapp.azure.com.pem
+        - sarahtruffert2.francecentral.cloudapp.azure.com.pem.csr
+        - sarahtruffert2.francecentral.cloudapp.azure.com.crt
+
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
